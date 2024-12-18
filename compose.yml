@@ -11,7 +11,7 @@ services:
       - "2222:22"
     environment:
       - DEBIAN_FRONTEND=noninteractive
-    command: /bin/bash -c "apt-get update && apt-get install -y openssh-server sudo docker.io docker-compose ansible curl nano git && service ssh start && tail -f /dev/null"
+    command: /bin/bash -c "apt-get update && apt-get install -y openssh-server sudo docker.io docker-compose ansible curl nano git && service ssh start && echo "admin:admin" | chpasswd && tail -f /dev/null"
     volumes:
       - ./config:/config
     build: .
@@ -26,7 +26,7 @@ services:
       - "2223:22"
     environment:
       - DEBIAN_FRONTEND=noninteractive
-    command: /bin/bash -c "apt-get update && apt-get install -y openssh-server sudo docker.io docker-compose ansible curl nano git && service ssh start && tail -f /dev/null"
+    command: /bin/bash -c "apt-get update && apt-get install -y openssh-server sudo docker.io docker-compose ansible curl nano git && service ssh start && echo "root:root" | chpasswd && tail -f /dev/null"
     volumes:
       - ./config:/config
     build: .
@@ -41,7 +41,7 @@ services:
       - "2224:22"
     environment:
       - DEBIAN_FRONTEND=noninteractive
-    command: /bin/bash -c "apt-get update && apt-get install -y openssh-server sudo docker.io docker-compose ansible curl nano git && service ssh start && tail -f /dev/null"
+    command: /bin/bash -c "apt-get update && apt-get install -y openssh-server sudo docker.io docker-compose ansible curl nano git && service ssh start && echo "root:root" | chpasswd && tail -f /dev/null"
     volumes:
       - ./config:/config
     build: .
@@ -56,7 +56,7 @@ services:
       - "2225:22"
     environment:
       - DEBIAN_FRONTEND=noninteractive
-    command: /bin/bash -c "apt-get update && apt-get install -y openssh-server sudo docker.io docker-compose ansible curl nano git && service ssh start && tail -f /dev/null"
+    command: /bin/bash -c "apt-get update && apt-get install -y openssh-server sudo docker.io docker-compose ansible curl nano git && service ssh start && echo "root:root" | chpasswd && tail -f /dev/null"
     volumes:
       - ./ssh_keys:/home/admin/.ssh:ro
     depends_on:

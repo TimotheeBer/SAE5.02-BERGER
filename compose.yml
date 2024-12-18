@@ -1,0 +1,72 @@
+version: '3.8'
+
+services:
+  update_manager:
+    image: ubuntu:20.04
+    container_name: update_manager
+    networks:
+      my_network:
+        ipv4_address: 192.168.1.10
+    ports:
+      - "2222:22"
+    environment:
+      - DEBIAN_FRONTEND=noninteractive
+    command: /bin/bash -c "apt-get update && apt-get install -y openssh-server sudo docker.io docker-compose ansible curl nano git && service ssh start && tail -f /dev/null"
+    volumes:
+      - ./config:/config
+    build: .
+  
+  monitoring_server:
+    image: ubuntu:20.04
+    container_name: monitoring_server
+    networks:
+      my_network:
+        ipv4_address: 192.168.1.11
+    ports:
+      - "2223:22"
+    environment:
+      - DEBIAN_FRONTEND=noninteractive
+    command: /bin/bash -c "apt-get update && apt-get install -y openssh-server sudo docker.io docker-compose ansible curl nano git && service ssh start && tail -f /dev/null"
+    volumes:
+      - ./config:/config
+    build: .
+
+  incident_manager:
+    image: ubuntu:20.04
+    container_name: incident_manager
+    networks:
+      my_network:
+        ipv4_address: 192.168.1.12
+    ports:
+      - "2224:22"
+    environment:
+      - DEBIAN_FRONTEND=noninteractive
+    command: /bin/bash -c "apt-get update && apt-get install -y openssh-server sudo docker.io docker-compose ansible curl nano git && service ssh start && tail -f /dev/null"
+    volumes:
+      - ./config:/config
+    build: .
+
+  serv_manager:
+    image: admin-server
+    container_name: serv_manager
+    networks:
+      my_network:
+        ipv4_address: 192.168.1.13
+    ports:
+      - "2225:22"
+    environment:
+      - DEBIAN_FRONTEND=noninteractive
+    command: /bin/bash -c "apt-get update && apt-get install -y openssh-server sudo docker.io docker-compose ansible curl nano git && service ssh start && tail -f /dev/null"
+    volumes:
+      - ./ssh_keys:/home/admin/.ssh:ro
+    depends_on:
+      - update_manager
+      - monitoring_server
+      - incident_manager
+
+networks:
+  my_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: "192.168.1.0/24"

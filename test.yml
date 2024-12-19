@@ -1,0 +1,141 @@
+---
+- name: Configure Incident Manager Server (GLPI)
+  hosts: incident_manager
+  become: yes
+  tasks:
+
+    - name: Install necessary dependencies
+      apt:
+        name:
+          - apache2
+          - mysql-server
+          - php
+          - php-mysql
+          - php-cli
+          - php-gd
+          - php-ldap
+          - php-mbstring
+          - php-curl
+        state: present
+
+    - name: Download and install GLPI
+      get_url:
+        url: https://github.com/glpi-project/glpi/releases/download/10.0.3/glpi-10.0.3.tar.gz
+        dest: /tmp/glpi.tar.gz
+
+    - name: Extract GLPI archive
+      unarchive:
+        src: /tmp/glpi.tar.gz
+        dest: /var/www/
+        creates: /var/www/glpi
+
+    - name: Set correct permissions for GLPI
+      file:
+        path: /var/www/glpi
+        owner: www-data
+        group: www-data
+        mode: '0755'
+        recurse: yes
+
+    - name: Configure Apache for GLPI
+      template:
+        src: glpi.conf.j2
+        dest: /etc/apache2/sites-available/glpi.conf
+
+    - name: Activer le site GLPI
+      command: a2ensite glpi.conf
+      notify:
+        - Restart apache
+
+    - name: Désactiver le site default
+      command: a2dissite 000-default.conf
+      notify:
+        - Restart apache
+        
+    - name: Enable Apache rewrite module
+      apache2_module:
+        name: rewrite
+        state: present
+
+    - name: Restart Apache service
+      service:
+        name: apache2
+        state: restarted
+
+    - name: Ensure MySQL service is running
+      service:
+        name: mysql
+        state: started
+        enabled: yes
+
+    - name: Configure GLPI database in MySQL
+      mysql_db:
+        name: glpi
+        state: present
+        login_user: root
+        login_password: your_mysql_root_password
+
+    - name: Install GLPI via web installer (manually)
+      uri:
+        url: http://localhost/glpi
+        method: GET
+        status_code: 200
+        
+
+- name: Configure Monitoring Server
+  hosts: monitoring_server
+  become: yes
+  tasks:
+
+    - name: Install Prometheus
+      apt:
+        name: prometheus
+        state: present
+        update_cache: yes
+
+
+    - name: Start Prometheus service
+      service:
+        name: prometheus
+        state: started
+        enabled: yes
+
+
+        
+
+- name: Configure Update Manager Server
+  hosts: update_manager
+  become: yes
+  tasks:
+
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+
+    - name: Ensure unattended-upgrades is installed (for auto-updates)
+      apt:
+        name: unattended-upgrades
+        state: present
+
+    - name: Enable automatic updates
+      lineinfile:
+        path: /etc/apt/apt.conf.d/20auto-upgrades
+        regexp: '^APT::Periodic::Update-Package-Lists'
+        line: 'APT::Periodic::Update-Package-Lists "1";'
+
+    - name: Ensure unattended-upgrades is enabled
+      service:
+        name: unattended-upgrades
+        state: started
+        enabled: yes
+
+    - name: Configure APT for security updates
+      lineinfile:
+        path: /etc/apt/apt.conf.d/50unattended-upgrades
+        regexp: '^// Unattended-Upgrade::Allowed-Origins'
+        line: 'Unattended-Upgrade::Allowed-Origins {
+                "Ubuntu:$(lsb_release -c | awk "{print $2}")-security";
+                "Debian:$(lsb_release -c | awk "{print $2}")-security";
+            };'
+      notify:
+        - Restart unattended-upgrades

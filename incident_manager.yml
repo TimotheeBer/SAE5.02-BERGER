@@ -1,0 +1,97 @@
+---
+- name: Configure Incident Manager Server (GLPI)
+  hosts: incident_manager
+  become: yes
+  tasks:
+    - name: Purger MySQL
+      apt:
+        name: mysql-server
+        state: absent
+        purge: yes 
+
+    - name: Installer python3-pip
+      apt:
+        name: python3-pip
+        state: present
+        update_cache: yes
+    
+    - name: Install PyMySQL for Python 3
+      pip:
+        name: PyMySQL
+        executable: pip3
+
+    - name: Install necessary dependencies
+      apt:
+        name:
+          - apache2
+          - mysql-server
+          - php
+          - php-mysql
+          - php-cli
+          - php-gd
+          - php-ldap
+          - php-mbstring
+          - php-curl
+        state: present
+        update_cache: yes
+
+    - name: Download and install GLPI
+      get_url:
+        url: https://github.com/glpi-project/glpi/archive/refs/tags/10.0.17.tar.gz
+        dest: /tmp/glpi.tar.gz
+      retries: 3
+      delay: 15
+      register: result
+      until: result is success
+
+    - name: Extract GLPI archive
+      unarchive:
+        src: /tmp/glpi.tar.gz
+        dest: /var/www/
+        creates: /var/www/glpi
+        remote_src: yes
+
+    - name: Set correct permissions for GLPI
+      file:
+        path: /var/www/glpi
+        owner: www-data
+        group: www-data
+        mode: '0755'
+        recurse: yes
+
+    - name: Configure Apache for GLPI
+      template:
+        src: glpi.conf
+        dest: /etc/apache2/sites-available/glpi.conf
+
+    - name: Enable GLPI site
+      command: a2ensite glpi.conf
+
+    - name: Enable Apache rewrite module
+      apache2_module:
+        name: rewrite
+        state: present
+
+    - name: Restart Apache service
+      service:
+        name: apache2
+        state: restarted
+
+    - name: Ensure MySQL service is running
+      service:
+        name: mysql
+        state: started
+        enabled: yes
+
+    - name: Configure GLPI database in MySQL
+      mysql_db:
+        name: glpi
+        state: present
+        login_user: root
+        login_password: root
+
+    - name: Install GLPI via web installer (manually)
+      uri:
+        url: http://localhost/glpi
+        method: GET
+        status_code: 200

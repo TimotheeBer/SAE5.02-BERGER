@@ -1,0 +1,112 @@
+---
+- name: Install TICK stack (Telegraf, InfluxDB, Chronograf, Kapacitor)
+  hosts: monitoring_server
+  become: yes
+  vars:
+    influxdb_version: "1.8"
+    telegraf_version: "1.22"
+    chronograf_version: "1.9.2"
+    kapacitor_version: "1.5.4"
+
+  tasks:
+    - name: Add InfluxData repository for InfluxDB
+      apt_repository:
+        repo: "deb https://repos.influxdata.com/debian stable stable"
+        state: present
+        filename: influxdata
+
+    - name: Install InfluxDB
+      apt:
+        name: influxdb={{ influxdb_version }}
+        state: present
+        update_cache: yes
+
+    - name: Ensure InfluxDB is started and enabled
+      service:
+        name: influxdb
+        state: started
+        enabled: yes
+
+    - name: Add InfluxData repository for Telegraf
+      apt_repository:
+        repo: "deb https://repos.influxdata.com/debian stable stable"
+        state: present
+        filename: influxdata
+
+    - name: Install Telegraf
+      apt:
+        name: telegraf={{ telegraf_version }}
+        state: present
+        update_cache: yes
+
+    - name: Ensure Telegraf is started and enabled
+      service:
+        name: telegraf
+        state: started
+        enabled: yes
+
+    - name: Add InfluxData repository for Chronograf
+      apt_repository:
+        repo: "deb https://repos.influxdata.com/debian stable stable"
+        state: present
+        filename: influxdata
+
+    - name: Install Chronograf
+      apt:
+        name: chronograf={{ chronograf_version }}
+        state: present
+        update_cache: yes
+
+    - name: Ensure Chronograf is started and enabled
+      service:
+        name: chronograf
+        state: started
+        enabled: yes
+
+    - name: Add InfluxData repository for Kapacitor
+      apt_repository:
+        repo: "deb https://repos.influxdata.com/debian stable stable"
+        state: present
+        filename: influxdata
+
+    - name: Install Kapacitor
+      apt:
+        name: kapacitor={{ kapacitor_version }}
+        state: present
+        update_cache: yes
+
+    - name: Ensure Kapacitor is started and enabled
+      service:
+        name: kapacitor
+        state: started
+        enabled: yes
+
+    - name: Configure InfluxDB (create database)
+      influxdb_database:
+        name: telegraf
+        state: present
+
+    - name: Configure Telegraf to use InfluxDB as output
+      template:
+        src: telegraf.conf.j2
+        dest: /etc/telegraf/telegraf.conf
+      notify:
+        - Restart Telegraf
+
+    - name: Set up Kapacitor alerting (example)
+      template:
+        src: kapacitor.conf.j2
+        dest: /etc/kapacitor/kapacitor.conf
+      notify:
+        - Restart Kapacitor
+
+  handlers:
+    - name: Restart Telegraf
+      service:
+        name: telegraf
+        state: restarted
+
+    - name: Restart Kapacitor
+      service:
+        name: kapacitor
+        state: restarted

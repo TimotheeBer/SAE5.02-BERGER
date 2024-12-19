@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   update_manager:
     image: ubuntu:20.04
@@ -11,11 +9,12 @@ services:
       - "2222:22"
     environment:
       - DEBIAN_FRONTEND=noninteractive
-    command: /bin/bash -c "apt-get update && apt-get install -y openssh-server sudo docker.io docker-compose ansible curl nano git && service ssh start && echo "admin:admin" | chpasswd && tail -f /dev/null"
+    command: /bin/bash -c "apt-get update && apt-get install -y openssh-server sudo docker.io docker-compose ansible curl nano git && service ssh start && echo 'root:root' | chpasswd && tail -f /dev/null"
     volumes:
       - ./config:/config
+      - /home/rt/config_ssh:/etc/ssh/sshd_config
     build: .
-  
+
   monitoring_server:
     image: ubuntu:20.04
     container_name: monitoring_server
@@ -29,6 +28,7 @@ services:
     command: /bin/bash -c "apt-get update && apt-get install -y openssh-server sudo docker.io docker-compose ansible curl nano git && service ssh start && echo "root:root" | chpasswd && tail -f /dev/null"
     volumes:
       - ./config:/config
+      - /home/rt/config_ssh:/etc/ssh/sshd_config
     build: .
 
   incident_manager:
@@ -41,9 +41,10 @@ services:
       - "2224:22"
     environment:
       - DEBIAN_FRONTEND=noninteractive
-    command: /bin/bash -c "apt-get update && apt-get install -y openssh-server sudo docker.io docker-compose ansible curl nano git && service ssh start && echo "root:root" | chpasswd && tail -f /dev/null"
+    command: /bin/bash -c "apt-get update && apt-get install -y openssh-server sudo docker.io docker-compose ansible curl nano git && service ssh start && echo 'root:root' | chpasswd && tail -f /dev/null"
     volumes:
       - ./config:/config
+      - /home/rt/config_ssh:/etc/ssh/sshd_config
     build: .
 
   serv_manager:
@@ -56,9 +57,15 @@ services:
       - "2225:22"
     environment:
       - DEBIAN_FRONTEND=noninteractive
-    command: /bin/bash -c "apt-get update && apt-get install -y openssh-server sudo docker.io docker-compose ansible curl nano git && service ssh start && echo "root:root" | chpasswd && tail -f /dev/null"
+    command: /bin/bash -c "apt-get update && apt-get install -y openssh-server sshpass sudo docker.io docker-compose ansible curl nano git && service ssh start && echo 'root:root' | chpasswd && tail -f /dev/null"
     volumes:
       - ./ssh_keys:/home/admin/.ssh:ro
+      - ./config_ssh:/etc/ssh/sshd_config
+      - ./script.sh:/root/config.sh
+      - ./incident_manager.yml:/root/incident_manager.yml
+      - ./monitoring_server.yml:/root/monitoring_server.yml
+      - ./update_manager.yml:/root/update_manager.yml
+      - ./inventaire.ini:/root/inventaire.ini
     depends_on:
       - update_manager
       - monitoring_server

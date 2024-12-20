@@ -3,37 +3,41 @@
   hosts: incident_manager
   become: yes
   tasks:
+    - name: Corriger dpkg si nécessaire
+      command: dpkg --configure -a
+      become: yes
+      ignore_errors: yes
+
+    - name: Mettre à jour apt
+      apt:
+        update_cache: yes
+      become: yes
+
     - name: Purger MySQL
       apt:
         name: mysql-server
         state: absent
-        purge: yes 
+        purge: yes
+        force: yes
+      become: yes
+
+    - name: Supprimer les fichiers résiduels
+      shell: |
+        rm -rf /var/lib/mysql
+        rm -rf /etc/mysql
+      become: yes
+      ignore_errors: true
 
     - name: Installer python3-pip
       apt:
         name: python3-pip
         state: present
         update_cache: yes
-    
-    - name: Install PyMySQL for Python 3
-      pip:
-        name: PyMySQL
-        executable: pip3
 
-    - name: Install necessary dependencies
-      apt:
-        name:
-          - apache2
-          - mysql-server
-          - php
-          - php-mysql
-          - php-cli
-          - php-gd
-          - php-ldap
-          - php-mbstring
-          - php-curl
+    - name: Install apt-utils
+      ansible.builtin.apt:
+        name: apt-utils
         state: present
-        update_cache: yes
 
     - name: Download and install GLPI
       get_url:
@@ -43,6 +47,15 @@
       delay: 15
       register: result
       until: result is success
+    
+    - name: Install Apache2
+      apt:
+        name:
+          - apache2
+          - mariadb-server
+        state: present
+        update_cache: yes
+      become: yes
 
     - name: Extract GLPI archive
       unarchive:
@@ -59,11 +72,6 @@
         mode: '0755'
         recurse: yes
 
-    - name: Configure Apache for GLPI
-      template:
-        src: glpi.conf
-        dest: /etc/apache2/sites-available/glpi.conf
-
     - name: Enable GLPI site
       command: a2ensite glpi.conf
 
@@ -77,21 +85,25 @@
         name: apache2
         state: restarted
 
-    - name: Ensure MySQL service is running
-      service:
-        name: mysql
-        state: started
-        enabled: yes
+##    - name: Start MariaDB Service
+  #    command: /etc/init.d/mariadb start 
 
-    - name: Configure GLPI database in MySQL
-      mysql_db:
-        name: glpi
-        state: present
-        login_user: root
-        login_password: root
+ #   - name: Create MariaDB Database for GLPI
+  #    mysql_db:
+ #       name: glpi
+ #       state: present
+  #      login_user: root
+   #     login_password: root
 
-    - name: Install GLPI via web installer (manually)
-      uri:
-        url: http://localhost/glpi
-        method: GET
-        status_code: 200
+ #   - name: Configure GLPI database in MySQL
+ #     mysql_db:
+ #       name: glpi
+ #       state: present
+ #       login_user: root
+  #      login_password: root
+
+#    - name: Install GLPI via web installer (manually)
+#      uri:
+#        url: http://localhost/glpi
+#        method: GET
+ #       status_code: 200

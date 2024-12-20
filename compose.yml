@@ -16,20 +16,44 @@ services:
     build: .
 
   monitoring_server:
-    image: ubuntu:20.04
+    image: grafana/grafana:latest
     container_name: monitoring_server
     networks:
       my_network:
         ipv4_address: 192.168.1.11
     ports:
       - "2223:22"
+      - "3000:3000"
     environment:
       - DEBIAN_FRONTEND=noninteractive
-    command: /bin/bash -c "apt-get update && apt-get install -y openssh-server sudo docker.io docker-compose ansible curl nano git && service ssh start && echo "root:root" | chpasswd && tail -f /dev/null"
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    command: /bin/bash -c "apt-get update && apt-get install -y openssh-server sudo docker.io docker-compose ansible curl nano git && service ssh start && echo 'root:root' | chpasswd && tail -f /dev/null"
+    stdin_open: true
+    tty: true
     volumes:
       - ./config:/config
       - /home/rt/config_ssh:/etc/ssh/sshd_config
+    depends_on:
+      - prometheus
     build: .
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "9090:9090" 
+    volumes:
+      - ./prometheus-config:/root/prometheus.yml
+      - ./entrypoint.sh:/entrypoint.sh
+    entrypoint: ["/entrypoint.sh"]
+    command:
+      - "chmod 777 /root/prometheus.yml && --config.file=/root/prometheus.yml && tail -f /dev/null"  # Spécifie le fichier de configuration
+    networks:
+      my_network:
+        ipv4_address: 192.168.1.15
+    depends_on:
+      - test_web
 
   incident_manager:
     image: ubuntu:20.04
@@ -41,10 +65,11 @@ services:
       - "2224:22"
     environment:
       - DEBIAN_FRONTEND=noninteractive
-    command: /bin/bash -c "apt-get update && apt-get install -y openssh-server sudo docker.io docker-compose ansible curl nano git && service ssh start && echo 'root:root' | chpasswd && tail -f /dev/null"
+    command: /bin/bash -c "apt-get update && apt-get install -y apache2 mariadb-server openssh-server sudo docker.io docker-compose ansible curl nano git && service ssh start && echo 'root:root' | chpasswd && tail -f /dev/null"
     volumes:
       - ./config:/config
       - /home/rt/config_ssh:/etc/ssh/sshd_config
+      - ./glpi.conf:/etc/apache2/sites-available/glpi.conf
     build: .
 
   serv_manager:
@@ -71,6 +96,18 @@ services:
       - monitoring_server
       - incident_manager
 
+  test_web:
+    image: httpd:latest
+    container_name: apache_server
+    networks:
+      my_network:
+        ipv4_address: 192.168.1.14
+    ports:
+      - "80:80"
+    volumes:
+      - ./test_web:/usr/local/apache2/htdocs
+    restart: always
+    
 networks:
   my_network:
     driver: bridge

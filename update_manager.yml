@@ -36,3 +36,8 @@
       notify:
         - "Restart unattended-upgrades"
 
+  handlers:
+    - name: Restart unattended-upgrades
+      service:
+        name: unattended-upgrades
+        state: restarted
